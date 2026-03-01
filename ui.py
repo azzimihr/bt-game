@@ -4,7 +4,8 @@ import time
 import numpy as np
 import random
 
-from logic import *
+from logic import moves, unpack  # Keep for moves() which doesn't have C++ version yet
+import breakthrough_engine
 
 
 def geo(tkw, w, h):
@@ -19,10 +20,13 @@ def compile():
         global depth
         start(8, 3)
         print("Compiling...")
-        ai_turn(b, allm, tt, 2, zobra, replica, scores)
+        # ai_turn(b, allm, tt, 2, zobra, replica, scores)
+        breakthrough_engine.init_board()
+        breakthrough_engine.set_board(b)
+        breakthrough_engine.ai_turn(2)
         print("Done.")
         compiler.destroy()
-        depth = 7
+        depth = 8
         newgame()
     
     geo(compiler, 150, 50)
@@ -36,7 +40,7 @@ def start(_size, _depth):
     global b, size, depth, tt, zobra, replica, allm, p, scores
     size = _size
     depth = _depth
-    tt = np.zeros(2**30, dtype=np.uint64)
+    tt = np.zeros(2**27, dtype=np.uint64)
     zobra = np.ascontiguousarray(np.random.randint(0, 2**64-1, size=(3, size, size), dtype=np.uint64))
     scores = np.zeros(6*size, dtype=np.int16)
 
@@ -170,9 +174,11 @@ def click(r, c):
     def initiate():
         global thinking, p
         timer = time.perf_counter()
-        p = ai_turn(b, allm, tt, depth,  zobra, replica, scores)
+        # p = ai_turn(b, allm, tt, depth,  zobra, replica, scores)
+        breakthrough_engine.set_board(b)
+        p = breakthrough_engine.ai_turn(depth)
         menubar.entryconfig(1, label=f"Time: {time.perf_counter()-timer:.2f}")
-        menubar.entryconfig(2, label=f"Score: {state(b,  replica)}")
+        menubar.entryconfig(2, label=f"Score: {breakthrough_engine.state()}")
         if p[2]>p[0]:
             b[p[0], p[1]] = 20
             b[p[2], p[3]] = 22
@@ -183,7 +189,7 @@ def click(r, c):
         draw()
 
     global select, thinking, p
-    if thinking or gameover(b):
+    if thinking or breakthrough_engine.gameover():
         return
     if p[2]>p[0]:
         b[p[0], p[1]] = 0
@@ -210,7 +216,7 @@ def click(r, c):
             col(r, c)
             select = []
             thinking = True
-            if not gameover(b):
+            if not breakthrough_engine.gameover():
                 win.after(50, initiate)
             
         else:
@@ -245,14 +251,20 @@ def draw():
 
 def bench():
     start(8, 6)
+    
+    breakthrough_engine.init_board()
+    breakthrough_engine.set_board(b)
 
     # warmup
-    ai_turn(b, allm, tt, depth,  zobra, replica, scores)
+    # ai_turn(b, allm, tt, depth,  zobra, replica, scores)
+    breakthrough_engine.ai_turn(depth)
 
     t0 = time.perf_counter()
 
     for _ in range(30):
-        ai_turn(b, allm, tt, depth, zobra, replica, scores)
+        breakthrough_engine.set_board(b)
+        # ai_turn(b, allm, tt, depth, zobra, replica, scores)
+        breakthrough_engine.ai_turn(depth)
 
     t1 = time.perf_counter()
     print("Time:", t1 - t0)

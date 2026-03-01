@@ -10,17 +10,18 @@ def zh(b,zobra):
             h ^= zobra[b[i, j], i, j]
     return h
 
-@njit()
+@njit(parallel=True)
 def moves(b, turn, allm, d):
     total = 0
     delta = turn * 2 - 1
     owned = 1 + turn
-    for i in range(1,8):
-        i = (8-1)*turn -i*delta
+    for i0 in range(8):
+        i = i0 + (7-2*i0)*turn
         pos = i+delta
-        for j in range(8):
-            # j = 8 - 1 -j
-            j = (j%2)*(8-1) - (j//2)*(j%2-(j+1)%2)
+        for j0 in range(8):
+            j1 = j0 & 1
+            j = 7*j1 + (j0//2)*(1-(2*j1))
+
             if b[i, j] != owned:
                 continue
             if j>0 and b[pos, j-1] != owned:
@@ -34,43 +35,59 @@ def moves(b, turn, allm, d):
                 total += 1
     allm[d, 6*8] = total
 
-@njit()
-def bmoves(b, turn, allm, d):
-    p1, p2 = bb(b)
+@njit(parallel=True)
+def bmoves(p1: np.uint64, p2: np.uint64, turn: np.uint8, allm, d):
     acn = ~(p1 | p2)
     if not turn:
         pn = ~p1
-        pL = p1 & (pn >> 9) & 0x7f7f7f7f7f7f7f7f # bitmask leftmost moves
-        pR = p1 & (pn >> 7) & 0xfefefefefefefefe # bitmask rightmost moves
-        pC = p1 & (acn >> 8)
+        pL = np.uint64((p1 & (pn << 9)) & np.uint64(0xfefefefefefefefe)) # bitmask leftmost moves
+        pR = np.uint64((p1 & (pn << 7)) & np.uint64(0x7f7f7f7f7f7f7f7f)) # bitmask rightmost moves
+        pC = np.uint64(p1 & (acn << 8))
     else:
         pn = ~p2
-        pL = p2 & (pn << 7) & 0x7f7f7f7f7f7f7f7f
-        pR = p2 & (pn << 9) & 0xfefefefefefefefe
-        pC = p2 & (acn << 8)
+        pL = np.uint64((p2 & (pn >> 7)) & np.uint64(0xfefefefefefefefe))
+        pR = np.uint64((p2 & (pn >> 9)) & np.uint64(0x7f7f7f7f7f7f7f7f))
+        pC = np.uint64(p2 & (acn >> 8))
+        # print (pL, pR, pC)
     
     total = 0
     last = 0
-    for i in range(7, -1, -1):
-        for j in range(7, -1, -1):
-            iL = pL & 1
-            iR = pR & 1
-            iC = pC & 1
+    delta = turn * 2 - 1
+    for i in range(8):
+        i = int((7-2*i)*turn + i)
+        i8 = int(8*i)
+        for j in range(8):
+            j1 = j & 1
+            j_actual = int(7*j1 + (j//2)*(1-(2*j1)))
 
-            total += iL
+            m = int(i8 + j_actual)
 
+            iL = np.uint64((pL>>m) & 1)
+            iR = np.uint64((pR>>m) & 1)
+            iC = np.uint64((pC>>m) & 1)
+
+            last *= 1-iR
+            last += iR * pack(i, j_actual, +1)
+            # last = pack(i, j_actual, +1) if iR else last
+            allm[d, total] = last
             total += iR
 
+            last *= 1-iL
+            last += iL * pack(i, j_actual, -1)
+            # last = pack(i, j_actual, -1) if iL else last
+            allm[d, total] = last
+            total += iL
+
+            last *= 1-iC
+            last += iC * pack(i, j_actual, 0)
+            # last = pack(i, j_actual, 0) if iC else last
+            allm[d, total] = last
             total += iC
 
-            pL >>= 1
-            pR >>= 1
-            pC >>= 1
+            allm[d, 6*8] = total
+            # print(total)
 
         
-
-
-
 @njit()
 def temp_diff(b, replica, r, c, maximize):
     val = b[r, c]
@@ -211,7 +228,9 @@ def ai_turn(b, allm, tt, depth, zobra, replica, scores):
         beta = +127
 
         ndepth = depth-1
-        moves(b, 1, allm, ndepth)
+        p10, p20 = bb(b)
+        # print(p10, p20)
+        bmoves(p10, p20, 1, allm, ndepth)
         h = zh(b,zobra)
         _, _, _, _, best_move_tt = unpack_tt(tt[h & ((1 << 19) - 1)])
 
@@ -227,24 +246,27 @@ def ai_turn(b, allm, tt, depth, zobra, replica, scores):
 
 
         for i in range(allm[ndepth, 6*8]):
-            m = unpack(allm[ndepth, i])
-            if b[m[0], m[1]] != 2:
+            r, c, mt = unpack(allm[ndepth, i])
+            if b[r, c] != 2:
                 continue
-            # print('Tested move:',m)
-            old = b[m[0]+1, m[1]+m[2]]
-            b[m[0], m[1]] = 0
-            b[m[0]+1, m[1]+m[2]] = 2
-            p1, p2 = bb(b)
-            ev = minimax(b, ndepth, 0, alfa, beta, allm, tt, 1, zobra, replica, scores, state(b, replica), zh(b, zobra), p1, p2)
+            r2 = r+1
+            c2 = c+mt
+            # # print('Tested move:',m)
+            old = b[r2, c2]
+            b[r, c] = 0
+            b[r2, c2] = 2
+            p2 = p20 & ~(np.uint64(1)<<(8*r + c)) | (np.uint64(1)<<(8*r2 + c2))
+            p1 = p10 & ~(np.uint64(1)<<(8*r2 + c2))
+            ev = minimax(b, ndepth, np.uint8(0), alfa, beta, allm, tt, 1, zobra, replica, scores, state(b, replica), zh(b, zobra), p1, p2)
             if ev>maxeval:
                 maxeval = ev
-                t = m
+                t = r, c, mt
             alfa = max (alfa, ev)
-            b[m[0], m[1]] = 2
-            b[m[0]+1, m[1]+m[2]] = old
+            b[r, c] = 2
+            b[r2, c2] = old
             if beta <= alfa:
                 break
-    # print(maxeval)
+    # # print(maxeval)
     if t!=(-1, -1, -1):
         b[t[0], t[1]] = 0
         b[t[0]+1, t[1]+t[2]] = 2
@@ -252,7 +274,7 @@ def ai_turn(b, allm, tt, depth, zobra, replica, scores):
     return 0, 0, 0, 0
 
 @njit()
-def minimax(b, depth, maximize, alfa0, beta0, allm, tt, deep, zobra, replica, scores, score0, h0, p10, p20):
+def minimax(b, depth, maximize: np.uint8, alfa0, beta0, allm, tt, deep, zobra, replica, scores, score0, h0, p10: np.uint64, p20: np.uint64):
 
     alfa = alfa0
     beta = beta0
@@ -268,15 +290,14 @@ def minimax(b, depth, maximize, alfa0, beta0, allm, tt, deep, zobra, replica, sc
             elif flag_tt == 2 and score_tt >= beta:
                 return score_tt
     # else:
-        # print('collision!')
+        # # print('collision!')
     
     ndepth = depth-1
-    moves(b, maximize, allm, ndepth)
-
-    p1, p2 = p10, p20
+    # moves(b, maximize, allm, ndepth)
+    bmoves(p10, p20, maximize, allm, ndepth)
 
     bm = 0
-    if deep<5:
+    if deep<6:
         sorter(b, allm, ndepth, allm[ndepth, 6*8], maximize, replica, bm, scores)
     if best_move_tt != 0:
         for i in range(allm[ndepth, 6*8]):
@@ -310,7 +331,9 @@ def minimax(b, depth, maximize, alfa0, beta0, allm, tt, deep, zobra, replica, sc
                     h ^= zobra[0, r, c]
                     h ^= zobra[old, r2, c2]
                     h ^= zobra[2, r2, c2]
-                    ev = minimax(b, ndepth, 0, alfa, beta, allm, tt, deep+1, zobra, replica, scores, score, h, p1, p2)
+                    p2 = p20 & ~(np.uint64(1)<<(8*r + c)) | (np.uint64(1)<<(8*r2 + c2))
+                    p1 = p10 & ~(np.uint64(1)<<(8*r2 + c2))
+                    ev = minimax(b, ndepth, np.uint8(0), alfa, beta, allm, tt, deep+1, zobra, replica, scores, score, h, p1, p2)
                 b[r, c] = 2
                 b[r2, c2] = old
             if ev>maxeval:
@@ -344,7 +367,9 @@ def minimax(b, depth, maximize, alfa0, beta0, allm, tt, deep, zobra, replica, sc
                     h ^= zobra[0, r, c]
                     h ^= zobra[old, r2, c2]
                     h ^= zobra[1, r2, c2]
-                    ev = minimax(b, ndepth, 1, alfa, beta, allm, tt, deep+1, zobra, replica, scores, score, h, p1, p2)
+                    p1 = p10 & ~(np.uint64(1)<<(8*r + c)) | (np.uint64(1)<<(8*r2 + c2))
+                    p2 = p20 & ~(np.uint64(1)<<(8*r2 + c2))
+                    ev = minimax(b, ndepth, np.uint8(1), alfa, beta, allm, tt, deep+1, zobra, replica, scores, score, h, p1, p2)
                 b[r, c] = 1
                 b[r2, c2] = old
             if ev < mineval:
