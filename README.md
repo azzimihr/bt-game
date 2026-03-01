@@ -35,23 +35,18 @@ Additional features implemented so far:
 - parallel bitboard representation for branchless move calculation
 - C++ rewrite
 
-Features on the way:
+On the way:
 - reducing TT entry from 8 to 4 bytes
-- 64-byte TT buckets, using 12-13 / 16 slots for entries and the rest for collision checking
+- 64-byte TT buckets, using 13 / 16 slots for entries and the rest for collision checking
+- depth- vs LRU-based bucket segments
+- removal of Numba
+- Tkinter debloating
+- bugfixing
 
 
-<h2>Memory bit layouts</h2>
+<h2>Devised memory layout (WIP)</h2>
 
-<h3>Current:</h3>
 
-- move **[8]**: **3** (row) + **3** (column) + **2** (move type)
-- TT entry **[64]**: **16** (best move) + **2** (a/b flag) + **4** (depth) + **18** (score) + **24** (hash remainder)
+<img width="1641" height="994" alt="layout" src="https://github.com/user-attachments/assets/b826d8aa-5242-41ef-bbae-08991c5c8827" />
 
-<h3>Future:</h3>
 
-- move **[16]**:  **3** (row)  +  **3** (column)  +  **2** (move type)  +  **8** (original index, for best move insertion)
-- TT entry **[32]**:  **6** (best move index)  +  **2** (a/b flag)  +  **4** (depth)  +  **8** (score)  +  **12** (hash remainder)
-
-<br>
-
-<img width="496" height="196" alt="image" src="https://github.com/user-attachments/assets/5a53f931-9710-4b44-8f4c-e23b03d65e0f" />
