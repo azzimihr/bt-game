@@ -11,7 +11,8 @@
 
 - Python 3.x
 - NumPy
-- Numba
+
+- GCC / Numba
 
 
 <h2>Optimization</h2>
@@ -31,12 +32,12 @@ Additional features implemented so far:
 - bit-packing of TT entries and moves
 - precalculated position weight matrix
 - incremental score/hash calculation
+- parallel bitboard representation for branchless move calculation
+- C++ rewrite
 
 Features on the way:
-- parallel bitboard representation to be used for branchless move calculation
 - reducing TT entry from 8 to 4 bytes
 - 64-byte TT buckets, using 12-13 / 16 slots for entries and the rest for collision checking
-- C++ rewrite?
 
 
 <h2>Memory bit layouts</h2>
