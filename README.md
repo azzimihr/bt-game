@@ -37,7 +37,6 @@ The classic Minimax optimizations:
 Additional features implemented so far:
 - 32-bit TT entries
 - branchless incremental score/hash eval
-- branchless bucket R/W
 
 On the way:
 - BUGFIXING
@@ -47,30 +46,49 @@ On the way:
 - removal of Numba leftovers
 - might revisit associative bucketing
 
+<h2>32-bit entry structure</h2>
+
+<img width="1200" height="300" alt="Figure_1" src="https://github.com/user-attachments/assets/1088b5d6-be4b-458d-9fbd-838666127543" />
+
+<br>
+
+<br>
+
+`1` - **generation**
+
+Determines if the entry is from the current or previous search.
+
+`2` - **depth**
+
+Representing values 1-8 while ignoring parity, with the replacement condition prioritizing the minimizer on equal depth values. It is possible to delegate only this much because a board state is practically guarranteed to reoccur only at the same depth in a single search.
+
+`2` - **flag**
+
+3 states for upper/lower bound and exact score.
+
+`5` - **best move index**
+
+The best in the first 32 moves from a deterministically calculated list of possible moves. If it becomes viable, I might merge it with **flag** to increase this to 42 moves, since `3 x 42 = 126` states can be encoded in 7 bits too.
+
+`7` - **score**
+
+Representing values from -63 to +63. The score is usually clamped between -62 and +62 with special hardcodings for pieces that reach the end.
+
+`15` - **hash remainder**
+
+Additional bits to check against to prevent collisions. With 21 bits used for indexing TT, it allows 36 total bits of verification.
+
 <h2>Empirical results</h2>
 
 I determined experimentally the optimal size for TT for depth 8 to be ~2^21 entries (`8MB` for 32-bit entries, `16MB` for 64-bit ones). I assume it is because it covers most board states searched (around 2M), while fitting in L3 on most x86 CPUs.
 
+<img width="783" height="502" alt="graph5" src="https://github.com/user-attachments/assets/21354799-02fa-4f52-bab4-8c376beda6c5" />
 
-<h2>Current entry structure by bits</h2>
+This is plotting the benchmark results involving random moves from the minimizer and calculated moves by the maximizer. The benchmarks were done in separate batches for the first 4, 5, 6, 8 and 10 moves, with the arithmetic mean boldened. As expected, the results stabilize after a certain threshold (~ 2^19 here), and plateau up to ~ 2^22, after which cache misses start to affect the performance.
 
-`1` - **generation**
-Determines if the entry is from the current or previous search.
+![pic](https://github.com/user-attachments/assets/be9657f3-a792-4319-8a75-e02aed734818)
 
-`2` - **depth**
-Representing values 1-8 while ignoring parity, with the replacement condition prioritizing the minimizer on equal depth values. It is possible to delegate only this much because a board state is practically guarranteed to reoccur only at the same depth in a single search and the current player is mostly deducible from it.
-
-`2` - **flag**
-3 states for upper/lower bound and exact score.
-
-`5` - **best move index**
-The best in the first 32 moves from a deterministically calculated list of possible moves. If it becomes viable, I might merge it with **flag** to increase this to 42 moves, since `3 x 42 = 126` states can be encoded in 7 bits too.
-
-`7` - **score**
-Representing values from -63 to +63. The score is usually clamped between -62 and +62 with special hardcodings for pieces that reach the end.
-
-`15` - **hash remainder**
-Additional bits to check against to prevent collisions. With 21 bits used for indexing TT, it allows 36 total bits of verification.
+The current blame graph.
 
 <h2>[ OLD ]  Devised 13-way associativity</h2>
 
