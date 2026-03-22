@@ -1,5 +1,6 @@
 #include "logic.h"
 
+
 auto bMoves(u64 p1, u64 p2, u8 turn, u8 d) {
     u64 acn = ~(p1 | p2);
     
@@ -139,7 +140,7 @@ i16 negamax32(u8 depth, u8 maximize, i16 alfa0, i16 beta0, u8 deep, i16 score0, 
             }
             
             maxeval = (ev > maxeval) ? ev : maxeval;
-            best_move = (ev > maxeval && oi<=27) ? oi : best_move;
+            best_move = (ev > maxeval && oi<=31) ? oi : best_move;
             alfa = std::max(alfa, ev);
             if (beta <= alfa) break;
         }
@@ -187,7 +188,7 @@ i16 negamax32(u8 depth, u8 maximize, i16 alfa0, i16 beta0, u8 deep, i16 score0, 
             }
             
             mineval = (ev < mineval) ? ev : mineval;
-            best_move = (ev < mineval && oi<=27) ? oi : best_move;
+            best_move = (ev < mineval && oi<=31) ? oi : best_move;
             beta = std::min(beta, ev);
             if (beta <= alfa) break;
         }

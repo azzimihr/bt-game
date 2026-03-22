@@ -4,7 +4,7 @@ import time
 import numpy as np
 import random
 
-from old.logic import moves, unpack  # Keep for moves() which doesn't have C++ version yet
+# from old.logic import moves, unpack  # Keep for moves() which doesn't have C++ version yet
 import breakthrough_engine
 
 
