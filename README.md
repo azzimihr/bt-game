@@ -7,44 +7,51 @@
 
 <br>
 
+<h2>Instructions</h2>
+
+Ran with:
+
+
+```sh build.sh```
+
+
+
 <h2>Requirements</h2>
 
-- Python 3.x
-- NumPy
-
-- GCC / Numba
+- clang
+- numpy + Tk
 
 
 <h2>Optimization</h2>
 
-Currently manages Depth **8** on my Ryzen 5500U.
+Current best compromise for speed and difficulty is depth 8. The old raw `u64` array approach is still faster. To try the 
 
-Has all the textbook optimizations of the **Minimax algorithm**:
-- transposition table (in raw array form)
+The classic Minimax optimizations:
+- transposition table (TT)
 - best move tracking
 - alpha/beta pruning
 - Zobrist hashing
-- collision handling
 - move sorting
+- `constexpr` pos value matrix
 
 Additional features implemented so far:
-- static NumPy arrays and matrices for all data
-- bit-packing of TT entries and moves
-- precalculated position weight matrix
-- incremental score/hash calculation
-- parallel bitboard representation for branchless move calculation
-- C++ rewrite
+- 32-bit TT entries
+- 14-way associative bucketing
+- branchless incremental score/hash eval
+- branchless moves eval
+- branchless bucket R/W
 
 On the way:
-- reducing TT entry from 8 to 4 bytes
-- 64-byte TT buckets, using 13 / 16 slots for entries and the rest for collision checking
-- depth- vs LRU-based bucket segments
-- removal of Numba
-- Tkinter debloating
-- bugfixing
+- BUGFIXING
+- multi-threading
+- SIMD (?)
+- `__builtin_prefetch`
+- serious performance analysis with `perf`
+- Tk debloating
+- removal of Numba leftovers
 
 
-<h2>Devised memory layout (WIP)</h2>
+<h2>[ OLD ]  Devised 13-way associativity</h2>
 
 
 <img width="1641" height="994" alt="layout" src="https://github.com/user-attachments/assets/b826d8aa-5242-41ef-bbae-08991c5c8827" />

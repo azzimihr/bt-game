@@ -1,7 +1,14 @@
-#include "logic.h"
+#include "new_logic.h"
 #include <cstring>
 #include <cstdint>
 #include <cstdio>
+
+PyMove ai_turn_wrapper(u8 depth) {
+    PyMove m = {0, 0, 0, 0};
+    // println("{}", sizeof(Bucket));
+    ai_turn(depth, m.r1, m.c1, m.r2, m.c2);
+    return m;
+}
 
 extern "C" {
     
@@ -10,16 +17,19 @@ extern "C" {
         memset(allm, 0, sizeof(allm));
         memset(scores, 0, sizeof(scores));
         
-        // Initialize zobra with deterministic pseudo-random values (LCG)
+        // Initialize zobra with deterministic pseudo-random values (xorshift64*)
         uint64_t seed = 0x9e3779b97f4a7c15;
         for (int p = 0; p < 3; ++p) {
             for (int i = 0; i < 8; ++i) {
                 for (int j = 0; j < 8; ++j) {
-                    seed = seed * 6364136223846793005ULL + 1442695040888963407ULL;
-                    const_cast<u64&>(zobra[p][i][j]) = seed;
+                    seed ^= seed >> 12;
+                    seed ^= seed << 25;
+                    seed ^= seed >> 27;
+                    const_cast<u64&>(zobra[p][i][j]) = seed * 2685821657736338717ULL;
                 }
             }
         }
+        init_tt();
     }
     
     void set_board(const u8* board_data) {
@@ -32,7 +42,7 @@ extern "C" {
     
     void call_ai_turn(u8 depth, u8* out) {
         
-        Move m = ai_turn_wrapper(depth);
+        PyMove m = ai_turn_wrapper(depth);
         out[0] = m.r1;
         out[1] = m.c1;
         out[2] = m.r2;

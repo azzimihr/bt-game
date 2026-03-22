@@ -4,7 +4,7 @@ import time
 import numpy as np
 import random
 
-from logic import moves, unpack  # Keep for moves() which doesn't have C++ version yet
+from old.logic import moves, unpack  # Keep for moves() which doesn't have C++ version yet
 import breakthrough_engine
 
 
@@ -178,6 +178,7 @@ def click(r, c):
         breakthrough_engine.set_board(b)
         p = breakthrough_engine.ai_turn(depth)
         menubar.entryconfig(1, label=f"Time: {time.perf_counter()-timer:.2f}")
+        print(f"{time.perf_counter()-timer:.2f}")
         menubar.entryconfig(2, label=f"Score: {breakthrough_engine.state()}")
         if p[2]>p[0]:
             b[p[0], p[1]] = 20
@@ -250,7 +251,7 @@ def draw():
             col(i, j)
 
 def bench():
-    start(8, 6)
+    start(8, 8)
     
     breakthrough_engine.init_board()
     breakthrough_engine.set_board(b)
@@ -261,7 +262,7 @@ def bench():
 
     t0 = time.perf_counter()
 
-    for _ in range(30):
+    for _ in range(200):
         breakthrough_engine.set_board(b)
         # ai_turn(b, allm, tt, depth, zobra, replica, scores)
         breakthrough_engine.ai_turn(depth)
