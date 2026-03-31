@@ -49,7 +49,7 @@ On the way:
 
 <h2>32-bit entry structure</h2>
 
-<img width="1200" height="300" alt="Figure_1" src="https://github.com/user-attachments/assets/1088b5d6-be4b-458d-9fbd-838666127543" />
+<img width="809" height="300" alt="Figure_2" src="https://github.com/user-attachments/assets/84788a08-4e5d-40bc-8a11-3ebe7f268883" />
 
 <br>
 
