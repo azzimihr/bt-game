@@ -43,6 +43,7 @@ On the way:
 - multi-threading
 - SIMD (?)
 - Tk debloating
+- Negamax
 - removal of Numba leftovers
 - might revisit associative bucketing
 
@@ -86,9 +87,9 @@ I determined experimentally the optimal size for TT for depth 8 to be ~2^21 entr
 
 This is plotting the benchmark results involving random moves from the minimizer and calculated moves by the maximizer. The benchmarks were done in separate batches for the first 4, 5, 6, 8 and 10 moves, with the arithmetic mean boldened. As expected, the results stabilize after a certain threshold (~ 2^19 here), and plateau up to ~ 2^22, after which cache misses start to affect the performance.
 
-![pic](https://github.com/user-attachments/assets/be9657f3-a792-4319-8a75-e02aed734818)
+<img width="657" height="214" alt="image" src="https://github.com/user-attachments/assets/4011647d-754c-40bf-8a1a-7fc2edb94063" />
 
-The current blame graph.
+Execution time data from `perf` after collapsing recursion.
 
 <h2>[ OLD ]  Devised 13-way associativity</h2>
 
