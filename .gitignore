@@ -1,4 +1,9 @@
+.idea/
+.vscode/
+__pycache__/
+
 perf.data
 perf.data.old
+
 _breakthrough.so
-__pycache__/
+benchmark

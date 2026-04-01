@@ -20,38 +20,39 @@ Ran with:
 
 - clang
 - numpy + Tk
+- Linux (for now)
 
 
 <h2>Optimization</h2>
 
-Current best compromise for speed and difficulty is depth 8. The old raw array approach is still faster than bucketing.
+Current best compromise for speed and difficulty is depth 8. Proper options for TT size and depth coming.
 
 The classic Minimax optimizations:
 - transposition table (TT)
-- best move tracking
 - alpha/beta pruning
+- best move tracking
 - Zobrist hashing
 - move sorting
-- `constexpr` pos value matrix
 
 Additional features implemented so far:
-- 32-bit TT entries
-- branchless incremental score/hash eval
+- lockless multithreading (4x faster than without)
+- 32-bit TT entries (2x less memory)
+- incremental score/hash eval with bitboards (avoids recomputation)
+- `constexpr` position value matrix
 
 On the way:
-- BUGFIXING
-- multi-threading
-- SIMD (?)
-- Tk debloating
+- proper thread pool
+- dynamic core count detection
+- further SIMD utilization
 - Negamax
-- removal of Numba leftovers
-- might revisit associative bucketing
+- Tk/UI/Python debloating
+- possibly improved locality by again reorganizing the TT
+- BUGFIXING
 
 <h2>32-bit entry structure</h2>
 
 <img width="809" height="300" alt="Figure_2" src="https://github.com/user-attachments/assets/84788a08-4e5d-40bc-8a11-3ebe7f268883" style="display: block; margin: 0 auto;"/>
 
-*
 
 <br>
 
@@ -71,7 +72,7 @@ Representing values 1-8 while ignoring parity, with the replacement condition pr
 
 `5` - **best move index**
 
-The best in the first 32 moves from a deterministically calculated list of possible moves. If it becomes viable, I might merge it with **flag** to increase this to 42 moves, since `3 x 42 = 126` states can be encoded in 7 bits too.
+The best in the first 42 moves from a deterministically calculated list of possible moves. Now merged with **flag** to increase the limit from 32 moves, since `3 x 42 = 126` states can be encoded in 7 bits too.
 
 `7` - **score**
 
@@ -81,7 +82,7 @@ Representing values from -63 to +63. The score is usually clamped between -62 an
 
 Additional bits to check against to prevent collisions. With 21 bits used for indexing TT, it allows for a total of 35 bits of verification.
 
-<h2>Empirical results</h2>
+<h2>Empirical results (outdated, new coming) </h2>
 
 I determined experimentally the optimal size for TT for depth 8 to be ~2^21 entries (`8MB` for 32-bit entries, `16MB` for 64-bit ones). I assume it is because it covers most board states searched (around 2M), while fitting in L3 on most x86 CPUs.
 

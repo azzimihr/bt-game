@@ -1,4 +1,4 @@
-#include "new_logic.h"
+#include "logic.h"
 #include <cstring>
 #include <cstdint>
 #include <cstdio>
@@ -14,10 +14,8 @@ extern "C" {
     
     void init_board() {
         memset(b, 0, sizeof(b));
-        memset(allm, 0, sizeof(allm));
         memset(scores, 0, sizeof(scores));
         
-        // Initialize zobra with deterministic pseudo-random values (xorshift64*)
         uint64_t seed = 0x9e3779b97f4a7c15;
         for (int p = 0; p < 3; ++p) {
             for (int i = 0; i < 8; ++i) {
