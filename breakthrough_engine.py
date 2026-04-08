@@ -14,7 +14,7 @@ _lib.set_board.restype = None
 _lib.get_board.argtypes = [ctypes.POINTER(ctypes.c_uint8)]
 _lib.get_board.restype = None
 
-_lib.call_ai_turn.argtypes = [ctypes.c_uint8, ctypes.POINTER(ctypes.c_uint8)]
+_lib.call_ai_turn.argtypes = [ctypes.POINTER(ctypes.c_uint8)]
 _lib.call_ai_turn.restype = None
 
 _lib.call_gameover.argtypes = []
@@ -36,9 +36,9 @@ def get_board():
     _lib.get_board(board.ctypes.data_as(ctypes.POINTER(ctypes.c_uint8)))
     return board
 
-def ai_turn(depth):
+def ai_turn():
     out = (ctypes.c_uint8 * 4)()
-    _lib.call_ai_turn(depth, out)
+    _lib.call_ai_turn(out)
     return tuple(out)
 
 def gameover():

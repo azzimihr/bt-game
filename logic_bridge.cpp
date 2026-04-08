@@ -3,10 +3,10 @@
 #include <cstdint>
 #include <cstdio>
 
-PyMove ai_turn_wrapper(u8 depth) {
+PyMove ai_turn_wrapper() {
     PyMove m = {0, 0, 0, 0};
     // println("{}", sizeof(Bucket));
-    ai_turn(depth, m.r1, m.c1, m.r2, m.c2);
+    ai_turn(9, m.r1, m.c1, m.r2, m.c2);
     return m;
 }
 
@@ -27,7 +27,6 @@ extern "C" {
                 }
             }
         }
-        init_tt();
     }
     
     void set_board(const u8* board_data) {
@@ -38,9 +37,9 @@ extern "C" {
         memcpy(board_data, b, 64);
     }
     
-    void call_ai_turn(u8 depth, u8* out) {
+    void call_ai_turn(u8* out) {
         
-        PyMove m = ai_turn_wrapper(depth);
+        PyMove m = ai_turn_wrapper();
         out[0] = m.r1;
         out[1] = m.c1;
         out[2] = m.r2;

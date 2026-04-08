@@ -1,4 +1,3 @@
-
 #include "logic.h"
 #include <chrono>
 #include <random>
@@ -7,16 +6,16 @@
 
 void init_zobra() {
     uint64_t seed = 0x9e3779b97f4a7c15;
-        for (int p = 0; p < 3; ++p) {
-            for (int i = 0; i < 8; ++i) {
-                for (int j = 0; j < 8; ++j) {
-                    seed ^= seed >> 12;
-                    seed ^= seed << 25;
-                    seed ^= seed >> 27;
-                    const_cast<u64&>(zobra[p][i][j]) = seed * 2685821657736338717ULL;
-                }
+    for (int p = 0; p < 3; ++p) {
+        for (int i = 0; i < 8; ++i) {
+            for (int j = 0; j < 8; ++j) {
+                seed ^= seed >> 12;
+                seed ^= seed << 25;
+                seed ^= seed >> 27;
+                const_cast<u64&>(zobra[p][i][j]) = seed * 2685821657736338717ULL;
             }
         }
+    }
 }
 
 void setup_board() {
@@ -74,7 +73,7 @@ bool make_random_move(u8 turn) {
 void play_game(u8 depth) {
     setup_board();
     
-    for (int round = 0; round < 12; ++round) {
+    for (int round = 0; round < 16; ++round) {
         if (!make_random_move(0)) {
             return;
         }
@@ -99,14 +98,12 @@ void play_game(u8 depth) {
 int main() {
     freopen("/dev/null", "w", stdout);
     
-    init_tt();
     init_zobra();
 
-    
     auto start_time = chrono::high_resolution_clock::now();
     
-    constexpr u8 depth = 8;
-    constexpr int num_games = 40;
+    constexpr u8 depth = 9;
+    constexpr int num_games = 20;
     
     fprintf(stderr, "Running benchmark: %d games, %d depth, max 5 rounds per game\n%lu\n", num_games, depth, tt3);
     
@@ -122,7 +119,7 @@ int main() {
     fprintf(stderr, "Total time: %lld ms\n", elapsed.count());
     fprintf(stderr, "Time per game: %.2f ms\n", static_cast<double>(elapsed.count()) / num_games);
     fprintf(stderr, "Transposition table overwrites: %lu\n", overwrites);
-    fprintf(stderr, "Nodes searched: %llu\n", searched/8/18);
+    fprintf(stderr, "Nodes searched: %lu\n", searched/8/18);
     
     return 0;
 }
