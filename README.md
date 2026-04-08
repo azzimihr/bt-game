@@ -9,34 +9,36 @@
 
 <h2>Instructions</h2>
 
-Ran with:
-
+Play with:
 
 ```./build.sh```
 
+Benchmark with:
+
+```./build.sh bench```
 
 
 <h2>Requirements</h2>
 
-- clang
-- numpy + Tk
+- clang & libc++
+- numpy & Tk
 - Linux (for now)
 
+The game currently auto-starts at depth 9, due to it being sufficiently fast.
 
 <h2>Optimization</h2>
 
-Current best compromise for speed and difficulty is depth 8. Proper options for TT size and depth coming.
 
 The classic Minimax optimizations:
-- transposition table (TT)
 - alpha/beta pruning
+- move sorting
+- transposition table (TT)
 - best move tracking
 - Zobrist hashing
-- move sorting
 
 Additional features implemented so far:
-- lockless multithreading (4x faster than without)
-- 32-bit TT entries (2x less memory)
+- atomic TT + lockless multithreading (2.5x speed)
+- 32-bit TT entries (1/2x memory)
 - incremental score/hash eval with bitboards (avoids recomputation)
 - `constexpr` position value matrix
 
@@ -45,9 +47,7 @@ On the way:
 - dynamic core count detection
 - further SIMD utilization
 - Negamax
-- Tk/UI/Python debloating
 - possibly improved locality by again reorganizing the TT
-- BUGFIXING
 
 <h2>32-bit entry structure</h2>
 
@@ -82,7 +82,23 @@ Representing values from -63 to +63. The score is usually clamped between -62 an
 
 Additional bits to check against to prevent collisions. With 21 bits used for indexing TT, it allows for a total of 35 bits of verification.
 
-<h2>Empirical results (outdated, new coming) </h2>
+<h2>Multithreading effectiveness</h2>
+
+<img width="475" height="286" alt="image" src="https://github.com/user-attachments/assets/4f4b206f-d224-437d-8134-5b88e9c9fdde" />
+
+Plateaus after exceeding CPU core count. There also seem to be around 350ms of unparallelizable work per round.
+
+<h2>Other insights</h2>
+
+The average branching factor after the root is around 6.
+
+<br>
+
+# FORMER OPTIMIZATION EXPERIMENTS
+
+<h3>[ OUTDATED ] Optimal TT/cache size</h3>
+
+*I have in the meantime found ways to effectively eliminate most of the cache latency, so cache size doesn't matter much anymore. Leaving this here for historical reference.* 
 
 I determined experimentally the optimal size for TT for depth 8 to be ~2^21 entries (`8MB` for 32-bit entries, `16MB` for 64-bit ones). I assume it is because it covers most board states searched (around 2M), while fitting in L3 on most x86 CPUs.
 
@@ -94,8 +110,9 @@ This is plotting the benchmark results involving random moves from the minimizer
 
 Execution time data from `perf` after collapsing recursion.
 
-<h2>[ OLD ]  Devised 13-way associativity</h2>
+<h3>[ OUTDATED ]  Devised 13-way associativity</h3>
 
+*This was an experimental idea on my part to pack entries into buckets which would contain a header with additional hash bits along with a few bits to represent the current permutation of an LRU bucket segment. Turned out to be way too slow to index and so i ditched it. Tried with 12 and 14-way associativity too.*
 
 <img width="1641" height="994" alt="layout" src="https://github.com/user-attachments/assets/b826d8aa-5242-41ef-bbae-08991c5c8827" style="display: block; margin: 0 auto;"/>
 
