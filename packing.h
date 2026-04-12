@@ -7,7 +7,9 @@
 #include <atomic>
 #include <thread>
 #include <vector>
+#include <chrono>
 using namespace std;
+using hrc = chrono::steady_clock;
 
 using u64 = uint64_t;
 using u32 = uint32_t;
@@ -34,11 +36,12 @@ inline auto bb(const u8 b[8][8]) {
 
 inline u32 packt(u32 uphash, i8 score, u64 ndepth, u64 flag, u64 best_move_idx, u64 generation) {
     u32 result = 0;
-    result |= best_move_idx * 3 + flag;
+    result |= (u32) (best_move_idx * 3 + flag);
     
     result |= ndepth/2 << 7;
-    result |= (u32)(score + 64) << 9;
-    result |= generation << 16;
+
+    result |= ((u32)(score + 84) * 3 + generation) << 9;
+
     result |= uphash << 18;
     return result;
 }
@@ -49,8 +52,11 @@ inline auto upackt(u32 tt_int) {
     u8 best_move_idx = combined / 3;
 
     u8 depth = (tt_int >> 7) & 0x3;
-    i16 score = ((i16)((tt_int >> 9) & 0x7f) - 64);
-    u32 generation = (tt_int >> 16) & 0x3;
+
+    u32 score_gen = (tt_int >> 9) & 0x1ff;
+    u32 generation = score_gen % 3;
+    i16 score = (score_gen / 3) - 84;
+
     u32 uphash = (tt_int >> 18);
     return tuple {uphash, score, depth, flag, best_move_idx, generation};
 }

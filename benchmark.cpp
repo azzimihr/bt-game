@@ -74,6 +74,7 @@ void play_game(u8 depth) {
     setup_board();
     
     for (int round = 0; round < 16; ++round) {
+        auto start_time = hrc::now();
         if (!make_random_move(0)) {
             return;
         }
@@ -82,7 +83,7 @@ void play_game(u8 depth) {
         if (go) return;
         
         u8 r1, c1, r2, c2;
-        ai_turn(depth, r1, c1, r2, c2);
+        ai_turn(depth, r1, c1, r2, c2, start_time);
         
         if (r1 == 0 && c1 == 0 && r2 == 0 && c2 == 0) {
             return;
@@ -100,10 +101,10 @@ int main() {
     
     init_zobra();
 
-    auto start_time = chrono::high_resolution_clock::now();
+    auto start_time = hrc::now();
     
     constexpr u8 depth = 9;
-    constexpr int num_games = 20;
+    constexpr int num_games = 40;
     
     fprintf(stderr, "Running benchmark: %d games, %d depth, max 5 rounds per game\n%lu\n", num_games, depth, tt3);
     
@@ -112,12 +113,13 @@ int main() {
         fprintf(stderr, "  Completed game %d/%d\n", game + 1, num_games);
     }
     
-    auto end_time = chrono::high_resolution_clock::now();
-    auto elapsed = chrono::duration_cast<chrono::milliseconds>(end_time - start_time);
+    auto end_time = hrc::now();
+    i64 elapsed = chrono::duration_cast<chrono::microseconds>(end_time - start_time).count() / 1000;
     
     fprintf(stderr, "\n=== Benchmark Results ===\n");
-    fprintf(stderr, "Total time: %lld ms\n", elapsed.count());
-    fprintf(stderr, "Time per game: %.2f ms\n", static_cast<double>(elapsed.count()) / num_games);
+    fprintf(stderr, "Total time: %ld ms\n", elapsed);
+    fprintf(stderr, "Time per game: %ld ms\n", elapsed / num_games);
+    fprintf(stderr, "Average thread utilization: %.3f \n", total_work/working_time);
     fprintf(stderr, "Transposition table overwrites: %lu\n", overwrites);
     fprintf(stderr, "Nodes searched: %lu\n", searched/8/18);
     

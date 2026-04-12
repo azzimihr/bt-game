@@ -2,7 +2,7 @@
 
 # Optionally build benchmark
 if [ "$1" = "bench" ]; then
-    clang++ -stdlib=libc++ -std=gnu++23 -O3 -march=native -g -fno-omit-frame-pointer -fdebug-info-for-profiling benchmark.cpp -lc++ -lpthread -o benchmark
+    clang++ -stdlib=libc++ -std=gnu++23 -O3 -march=native -fno-exceptions -fno-rtti -fno-threadsafe-statics -g -fno-omit-frame-pointer -fdebug-info-for-profiling benchmark.cpp -lc++ -lpthread -o benchmark
     perf record -g ./benchmark
     hotspot perf.data &
 else

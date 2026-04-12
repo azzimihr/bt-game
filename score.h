@@ -11,10 +11,10 @@ struct alignas(4) Move {
 
 alignas(64) u8 b[8][8];
 alignas(64) thread_local u8 bt[8][8];
-alignas(64) thread_local Move alm[9][48];
+alignas(64) thread_local Move alm[10][48];
 alignas(64) thread_local i16 scores[64];
 
-constexpr u64 tt3 = 26;
+constexpr u64 tt3 = 27;
 // alignas(64) u32 TT3[1 << tt3] = {0};
 auto* TT3 = new atomic<u32>[1<<tt3];
 u64 gen = 1;
@@ -35,13 +35,13 @@ u64 zh() {
 
 alignas(64) constexpr static u8 replica[8][8] = {
     {99, 99, 99, 99, 99, 99, 99, 99},
-    {12, 10, 11, 12, 12, 11, 10, 12},
-    { 9,  7,  8,  9,  9,  8,  7,  9},
-    { 7,  5,  6,  7,  7,  6,  5,  7},
-    { 6,  4,  5,  6,  6,  5,  4,  6},
-    { 5,  3,  4,  5,  5,  4,  3,  5},
-    { 4,  2,  3,  4,  4,  3,  2,  4},
-    { 4,  2,  3,  4,  4,  3,  2,  3}
+    {15, 15, 15, 15, 15, 15, 15, 15},
+    {11, 11, 11, 11, 11, 11, 11, 11},
+    { 8,  7,  7,  8,  8,  7,  7,  8},
+    { 6,  5,  5,  6,  6,  5,  5,  6},
+    { 5,  4,  4,  5,  5,  4,  4,  5},
+    { 4,  3,  3,  4,  4,  3,  3,  4},
+    { 5,  5,  5,  5,  5,  5,  5,  5}
 };
 
 i16 temp_diff(u8 r, u8 c, u64 p1, u64 p2, u8 val) {
@@ -62,24 +62,6 @@ i16 temp_diff(u8 r, u8 c, u64 p1, u64 p2, u8 val) {
     }
 }
 
-// i16 temp_diff(u8 r, u8 c, u64 p1, u64 p2, u8 val) {
-//     // tie(p1, p2) = bb(b);
-//     i8 s = (val==1) ? 1 : -1;
-//     int idx = (val==1 ? 0 : 7) + s * r;
-//     u64 self = (val == 1) ? p1 : p2;
-//     i64 pos = r * 8 + c;
-    
-//     // Select pattern based on column, strip left/right bits for boundaries
-//     u64 pattern = (c == 0) ? 0b1100000000000000110ULL:
-//                   (c == 7) ? 0b0110000000000000011ULL:
-//                              0b1110000000000000111ULL;
-//     u64 mask1 = pattern << (pos-9);
-//     u64 mask2 = pattern >> (9-pos);
-    
-//     int match_count = __builtin_popcountll(self & (pos>9 ? mask1 : mask2));
-//     i16 h = match_count - replica[idx][c];
-//     return h * s;
-// }
 
 i16 move_diff() {
     i16 num = 0;
@@ -119,8 +101,8 @@ i16 quickeval() {
 
 i8 gameover() {
     for (int i = 0; i < 8; ++i) {
-        if (b[0][i] == 1) return -63;
-        if (b[7][i] == 2) return 63;
+        if (b[0][i] == 1) return -83;
+        if (b[7][i] == 2) return 83;
     }
     return 0;
 }
@@ -128,6 +110,17 @@ i16 state() {
     auto go = gameover();
     if (go) return (go);
     return move_diff() + quickeval();
+}
+
+i16 additional(u64 p1, u64 p2){
+    u64 blocks[] = {0xe0e0e0e0e0e0e0e0, 0x7070707070707070, 0x0e0e0e0e0e0e0e0e, 0x0707070707070707};
+    i32 a1 = 0;
+    i32 a2 = 0;
+    for (u64 b : blocks){
+        a1 = std::max(__builtin_popcountll(p1 & b), a1);
+        a2 = std::max(__builtin_popcountll(p2 & b), a2);
+    }
+    return (i16) a2 - (i16) a1;
 }
 
 void sorter2(u8 turn, u8 d, u8 bm, i64 tm, i16 score0, u64 p10, u64 p20) {
@@ -149,9 +142,10 @@ void sorter2(u8 turn, u8 d, u8 bm, i64 tm, i16 score0, u64 p10, u64 p20) {
         bt[m.r][m.c] = 0;
         bt[r2][c2] = turn + 1;
         score = score + temp_diff(r2, c2, p1, p2, turn+1);
-        scores[i] = score;
+        scores[i] = score + additional(p1, p2);
         bt[m.r][m.c] = turn + 1;
         bt[r2][c2] = old;
+
     }
     
     for (int i = bm; i < total; ++i) {
