@@ -12,14 +12,14 @@ void setter(u8 d){
 inline auto clz(u64& p, i64& total, i8 mt, u8 depth){
     int pos = 63 - __builtin_clzll(p);
     p &= ~(1ull << pos);
-    alm[depth][total] = {mt, 0, (i8)(pos / 8), (i8)(pos % 8)};
+    alm[depth][total] = {mt, (i8) total, (i8)(pos / 8), (i8)(pos % 8)};
     total++;
 };
 
 inline auto ctz(u64& p, i64& total, i8 mt, u8 depth){
     int pos = __builtin_ctzll(p);
     p &= p - 1;
-    alm[depth][total] = {mt, 0, (i8)(pos / 8), (i8)(pos % 8)};
+    alm[depth][total] = {mt, (i8) total, (i8)(pos / 8), (i8)(pos % 8)};
     total++;
 };
 
@@ -59,7 +59,7 @@ auto bMoves(u64 p1, u64 p2, u8 turn, u8 d) {
         while (pC) ctz(pC, total, 0, d);
     }
     
-    setter(d);
+    // setter(d);
     return total;
 }
 
@@ -90,7 +90,25 @@ inline auto writer(u64 h0, i8 val, u64 ndepth, u64 flag, u64 best_move, u8 maxim
 }
 
 
+
 atomic<i16> ALFA;
+
+template<typename T>
+struct alignas(64) separated {
+    atomic<T> val;
+
+    operator T() const {
+        return val.load();
+    }
+    
+    separated& operator=(T v) {
+        val.store(v);
+        return *this;
+    }
+};
+
+array<separated<i16>, 48> betas;
+
 i16 minimax(u8 depth, u8 maximize, i16 alfa0, i16 beta0, u8 deep, i16 score0, u64 h0, u64 p10, u64 p20) {
     i16 alfa = alfa0, beta = beta0;
     u8 best_move = 0;
@@ -105,37 +123,38 @@ i16 minimax(u8 depth, u8 maximize, i16 alfa0, i16 beta0, u8 deep, i16 score0, u6
     
     best_move_tt = bm ? best_move_tt : 0;
     swap(alm[ndepth][best_move_tt], alm[ndepth][0]);
-    if (ndepth>2 || (ndepth>1 && !bm)) {
-        sorter2(maximize, ndepth, bm, tm, score0, p10, p20);
+    if (ndepth>1) {
+        sorter2(maximize, ndepth, bm, tm, p10, p20);
     }
     
     i16 val;
     i16 score;;
-    u64 zbrs[64];
+    u64 zbrs[48];
     if (ndepth!=0){
         for (int i = 0; i < tm; ++i) {
             auto [mt, oi, r, c] = alm[ndepth][i];
             i8 r2 = r + (maximize ? 1 : -1);
             i8 c2 = c+mt;
-            u8 old = bt[r2][c2];
+            u8 pos2 = 8*r2 + c2;
+
+            u8 old = (p10 & (1ull << pos2)) ? 1 : (p20 & (1ull << pos2)) ? 2 : 0;
             zbrs[i] = zobrer(h0, old, r, c, r2, c2, maximize+1);
         }
     }
     if (maximize){
-        i16 maxeval = -84;
-        i16 bc = -84;
+        i16 maxeval = -200;
         for (int i = 0; i < tm; ++i) {
             auto [mt, oi, r, c] = alm[ndepth][i];
             i16 ev;
             if (r == 6) {
-                ev = 84;
+                ev = 200;
             } else {
                 if (ndepth == 0) {
-                    i8 r2 = r +1;
+                    i8 r2 = r + 1;
                     i8 c2 = c + mt;
-                    u8 old = bt[r2][c2];
                     u8 pos = 8*r + c;
                     u8 pos2 = 8*r2 + c2;
+                    u64 old = p10 & (1ull << pos2);
                     u64 p2 = p20 & ~(1ull << pos) | (1ull << pos2);
                     u64 p1 = p10 & ~(1ull << pos2);
                     score = score0 - temp_diff(r, c, p10, p20, 2);
@@ -143,20 +162,22 @@ i16 minimax(u8 depth, u8 maximize, i16 alfa0, i16 beta0, u8 deep, i16 score0, u6
                     if (old != 0) {
                         score = score - temp_diff(r2, c2, p10, p20, 1);
                     }
-                    score = clamp(score, (i16)-83, (i16)83);
-                    ev = score;
+                    // score = clamp(score, (i16)-83, (i16)83);
+                    ev = score + additional(p1, p2);
                 } else {
                     auto [UPHASH, SCORE, DEPTH, FLAG, BEST, GEN] = accesser2(zbrs[i]);
-                    u8 BM = UPHASH == (zbrs[i] >> 50) and UPHASH!=0;
-                    if (DEPTH == ndepth/2 and FLAG == 0 and BM) {
-                        ev = SCORE;
-                    } else {
-                        
-                        i8 r2 = r +1;
+                    u8 BM = DEPTH == (ndepth-1)/2 and UPHASH == (zbrs[i] >> 50) and UPHASH!=0;
+                    if (deep<5) alfa = max(alfa, (i16) ALFA);
+                    SCORE = (SCORE == 84) ? 200 : (SCORE == -84) ? -200 : SCORE;
+                    if (FLAG == 0 and BM and abs(SCORE)!=83) ev = SCORE;
+                    else if (FLAG == 1 && SCORE <= alfa and BM) ev = SCORE;
+                    else if (FLAG == 2 && SCORE >= beta and BM) ev = SCORE;
+                    else {
+                        i8 r2 = r + 1;
                         i8 c2 = c + mt;
-                        u8 old = bt[r2][c2];
                         u8 pos = 8*r + c;
                         u8 pos2 = 8*r2 + c2;
+                        u64 old = p10 & (1ull << pos2);
                         u64 p2 = p20 & ~(1ull << pos) | (1ull << pos2);
                         u64 p1 = p10 & ~(1ull << pos2);
                         score = score0 - temp_diff(r, c, p10, p20, 2);
@@ -164,42 +185,37 @@ i16 minimax(u8 depth, u8 maximize, i16 alfa0, i16 beta0, u8 deep, i16 score0, u6
                         if (old != 0) {
                             score = score - temp_diff(r2, c2, p10, p20, 1);
                         }
-                        score = clamp(score, (i16)-83, (i16)83);
-                        ev = score;
-
-                        if (FLAG == 1 && SCORE <= alfa and BM) ev = SCORE;
-                        else if (FLAG == 2 && SCORE >= beta and BM) ev = SCORE;
-                        else{
-                            bt[r][c] = 0;
-                            bt[r2][c2] = 2;
-                            ev = minimax(ndepth, 0, alfa, beta, deep+1, score, zbrs[i], p1, p2);
-                            bt[r][c] = 2;
-                            bt[r2][c2] = old;
-                        }
+                        // score = clamp(score, (i16)-83, (i16)83);
+                        // bt[r][c] = 0;
+                        // bt[r2][c2] = 2;
+                        ev = minimax(ndepth, 0, alfa, beta, deep+1, score, zbrs[i], p1, p2);
+                        // bt[r][c] = 2;
+                        // bt[r2][c2] = old;
                     }
                 }
             }
             best_move = (ev > maxeval  && oi<=41) ? oi : best_move;
             maxeval = max(ev, maxeval);
             alfa = max(alfa, ev);
+            if (deep<7) alfa = max(alfa, (i16) ALFA);
             if (beta <= alfa) break;
         }
         val = maxeval;
     } else {
-        i16 mineval = 84;
-        i16 bc = 84;
+        i16 mineval = 200;
+        // #pragma omp parallel for
         for (int i = 0; i < tm; ++i) {
             auto [mt, oi, r, c] = alm[ndepth][i];
             i16 ev;
             if (r == 1) {
-                ev = -84;
+                ev = -200;
             } else {        
                 if (ndepth == 0) {
                     i8 r2 = r - 1;
                     i8 c2 = c + mt;
-                    u8 old = bt[r2][c2];
                     u8 pos = 8*r + c;
                     u8 pos2 = 8*r2 + c2;
+                    u64 old = p20 & (1ull << pos2);
                     u64 p2 = p20 & ~(1ull << pos2);
                     u64 p1 = p10 & ~(1ull << pos) | (1ull << pos2);
                     score = score0 - temp_diff(r, c, p10, p20, 1);
@@ -207,30 +223,34 @@ i16 minimax(u8 depth, u8 maximize, i16 alfa0, i16 beta0, u8 deep, i16 score0, u6
                     if (old != 0) {
                         score = score - temp_diff(r2, c2, p10, p20, 2-0);
                     }
-                    score = clamp(score, (i16)-83, (i16)83);
-                    ev = score;
+                    // score = clamp(score, (i16)-83, (i16)83);
+                    ev = score + additional(p1, p2);
                 } else {
                     if (deep==3) {
                         auto [UPHASH, SCORE, DEPTH, FLAG, BEST, GEN] = accesser2(h0);
-                        u8 BM = UPHASH == (h0 >> 50) and UPHASH!=0;
-                        if (DEPTH == ndepth/2) {
-                            if (FLAG == 0) return SCORE;
-                            else if (FLAG == 1 && SCORE <= alfa0) return SCORE;
-                            else if (FLAG == 2 && SCORE >= beta0) return SCORE;
+                        u8 BM = DEPTH == ndepth/2 and UPHASH == (h0 >> 50) and UPHASH!=0;
+                        SCORE = (SCORE == 84) ? 200 : (SCORE == -84) ? -200 : SCORE;
+                        if (DEPTH == ndepth/2 and BM) {
+                            if (FLAG == 0 and abs(SCORE)!=83) return SCORE;
+                            else if (FLAG == 1 && SCORE <= alfa) return SCORE;
+                            else if (FLAG == 2 && SCORE >= beta) return SCORE;
                         }
                     }
                     
                     auto [UPHASH, SCORE, DEPTH, FLAG, BEST, GEN] = accesser2(zbrs[i]);
-                    u8 BM = UPHASH == (zbrs[i] >> 50) and UPHASH!=0;
-                    if (DEPTH == ndepth/2 and FLAG == 0 and BM) {
-                        ev = SCORE;
-                    } else {
+                    u8 BM = DEPTH == (ndepth-1)/2 and UPHASH == (zbrs[i] >> 50) and UPHASH!=0;
+                    if (deep<5) alfa = max(alfa, (i16) ALFA);
+                    SCORE = (SCORE == 84) ? 200 : (SCORE == -84) ? -200 : SCORE;
+                    if (FLAG == 0 and BM and abs(SCORE)!=83) ev = SCORE;
+                    else if (FLAG == 1 && SCORE <= alfa and BM) ev = SCORE;
+                    else if (FLAG == 2 && SCORE >= beta and BM) ev = SCORE;
+                    else {
                         
                         i8 r2 = r - 1;
                         i8 c2 = c + mt;
-                        u8 old = bt[r2][c2];
                         u8 pos = 8*r + c;
                         u8 pos2 = 8*r2 + c2;
+                        u64 old = p20 & (1ull << pos2);
                         u64 p2 = p20 & ~(1ull << pos2);
                         u64 p1 = p10 & ~(1ull << pos) | (1ull << pos2);
                         score = score0 - temp_diff(r, c, p10, p20, 1);
@@ -238,20 +258,16 @@ i16 minimax(u8 depth, u8 maximize, i16 alfa0, i16 beta0, u8 deep, i16 score0, u6
                         if (old != 0) {
                             score = score - temp_diff(r2, c2, p10, p20, 2);
                         }
-                        score = clamp(score, (i16)-83, (i16)83);
-                        ev = score;
-
-                        if (FLAG == 1 && SCORE <= alfa and BM) ev = SCORE;
-                        else if (FLAG == 2 && SCORE >= beta and BM) ev = SCORE;
-                        else{
-                            bt[r][c] = 0;
-                            bt[r2][c2] = 1;
-                            ev = minimax(ndepth, 1, alfa, beta, deep+1, score, zbrs[i], p1, p2);
-                            bt[r][c] = 1;
-                            bt[r2][c2] = old;
-                        }
+                        // score = score + additional(p1, p2);
+                        // score = clamp(score, (i16)-83, (i16)83);
+                        // bt[r][c] = 0;
+                        // bt[r2][c2] = 1;
+                        ev = minimax(ndepth, 1, alfa, beta, deep+1, score, zbrs[i], p1, p2);
+                        // bt[r][c] = 1;
+                        // bt[r2][c2] = old;
                     }
                 }
+                // ev = clamp(ev, (i16)-83, (i16)83);
             }
             
             best_move = (ev < mineval  && oi<=41) ? oi : best_move;
@@ -259,23 +275,23 @@ i16 minimax(u8 depth, u8 maximize, i16 alfa0, i16 beta0, u8 deep, i16 score0, u6
             mineval = min(ev, mineval);
             beta = min(beta, ev);
             
-            if (deep==1) alfa = max(alfa, (i16) ALFA);
+            if (deep<7) alfa = max(alfa, (i16) ALFA);
             if (beta <= alfa) break;
         }
         val = mineval;
     }
     
     u8 flag = (val <= alfa0) ? 1 : (val >= beta0) ? 2 : 0;
-    writer(h0, val, ndepth, flag, best_move, maximize, idx);
+    i16 wval = (val==200) ? 84 : (val==-200) ? -84 : clamp(val, (i16)-83, (i16)83);
+    writer(h0, wval, ndepth, flag, best_move, maximize, idx);
     return val;
 }
 
-alignas(64) u8 boards[48][8][8];
-alignas(64) i16 states[48];
-alignas(64) u64 zhs[48];
-alignas(64) u64 p1s[48];
-alignas(64) u64 p2s[48];
-alignas(64) atomic<i16> results[48];
+array<separated<i16>, 48> states;
+array<separated<u64>, 48> zhs;
+array<separated<u64>, 48> p1s;
+array<separated<u64>, 48> p2s;
+array<separated<i16>, 48> results;
 constexpr int tc = 6;
 array<thread, tc> workers;
 
@@ -284,8 +300,10 @@ double total_work = 0;
 double working_time = 0;
 
 void task(int id, u8 ndepth, i64 tm, hrc::time_point st) {
-    for (int i=id; i<tm; i=needed.fetch_add(1)){
-        memcpy(bt, &boards[i][0][0], 64);
+    (void)id;
+    for (;;) {
+        u64 i = needed.fetch_add(1);
+        if (i >= (u64)tm) break;
         i16 ev = minimax(ndepth, 0, ALFA, 84, 1, states[i], zhs[i], p1s[i], p2s[i]);
         ALFA = std::max((i16) ALFA, ev);
         results[i] = ev;
@@ -332,7 +350,7 @@ void ai_turn(u8 depth, u8& r1, u8& c1, u8& r2, u8& c2, hrc::time_point st) {
         best_move_tt = bm ? best_move_tt : 0;
         swap(alm[ndepth][best_move_tt], alm[ndepth][0]);
         
-        sorter2(1, ndepth, bm, tm, state(), p10, p20);
+        sorter2(1, ndepth, bm, tm, p10, p20);
         
         for (int i = 0; i < tm; ++i) {
             auto [mt, oi, r, c] = alm[ndepth][i];
@@ -349,7 +367,6 @@ void ai_turn(u8 depth, u8& r1, u8& c1, u8& r2, u8& c2, hrc::time_point st) {
             u64 p1 = p10 & ~(1ull << (8*r2_move + c2_move));
             
             println("{}", i);
-            memcpy(&boards[i][0][0], b, 64);
             states[i] = state();
             zhs[i] = zh();
             p1s[i] = p1;

@@ -34,7 +34,7 @@ def window():
     win.config(menu=menubar)
 
     win.config(bg='#000')
-    win.title(f"Breakthrough - {size}x{size} - Depth 9")
+    win.title(f"Breakthrough - {size}x{size} - Depth 10")
     win.resizable(False, False)
     win.update()
     wsize = size*61 - 1

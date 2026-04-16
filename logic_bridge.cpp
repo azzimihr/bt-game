@@ -6,7 +6,7 @@
 PyMove ai_turn_wrapper() {
     PyMove m = {0, 0, 0, 0};
     // println("{}", sizeof(Bucket));
-    ai_turn(10, m.r1, m.c1, m.r2, m.c2);
+    ai_turn(10, m.r1, m.c1, m.r2, m.c2, hrc::now());
     return m;
 }
 

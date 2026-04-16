@@ -101,8 +101,8 @@ i16 quickeval() {
 
 i8 gameover() {
     for (int i = 0; i < 8; ++i) {
-        if (b[0][i] == 1) return -83;
-        if (b[7][i] == 2) return 83;
+        if (b[0][i] == 1) return -127;
+        if (b[7][i] == 2) return 127;
     }
     return 0;
 }
@@ -113,17 +113,17 @@ i16 state() {
 }
 
 i16 additional(u64 p1, u64 p2){
-    u64 blocks[] = {0xe0e0e0e0e0e0e0e0, 0x7070707070707070, 0x0e0e0e0e0e0e0e0e, 0x0707070707070707};
+    u64 blocks[] = {0xf0f0f0f0f0f0f0f0, 0x7878787878787878, 0x3c3c3c3c3c3c3c3c, 0x1e1e1e1e1e1e1e1e, 0x0f0f0f0f0f0f0f0f};
     i32 a1 = 0;
     i32 a2 = 0;
     for (u64 b : blocks){
         a1 = std::max(__builtin_popcountll(p1 & b), a1);
         a2 = std::max(__builtin_popcountll(p2 & b), a2);
     }
-    return (i16) a2 - (i16) a1;
+    return ((i16) a2 - (i16) a1)/2, 0;
 }
 
-void sorter2(u8 turn, u8 d, u8 bm, i64 tm, i16 score0, u64 p10, u64 p20) {
+void sorter2(u8 turn, u8 d, u8 bm, i64 tm, u64 p10, u64 p20) {
     u8 total = tm;
     i8 delta = 2 * turn - 1;
     
@@ -132,32 +132,51 @@ void sorter2(u8 turn, u8 d, u8 bm, i64 tm, i16 score0, u64 p10, u64 p20) {
         auto r2 = m.r + delta;
         auto c2 = m.c + m.mt;
         u8 pos = 8*m.r + m.c;
-        u64 p2 = p20 & ~(1ull << (pos)) | (1ull << (8*r2 + c2));
-        u64 p1 = p10 & ~(1ull << (8*r2 + c2));
-        u8 old = bt[r2][c2];
-        i16 score = score0 - temp_diff(m.r, m.c, p10, p20, turn+1);
+        u8 pos2 = 8*r2 + c2;
+        u64 p1, p2;
+        if (turn){
+            p2 = p20 & ~(1ull << (pos)) | (1ull << pos2);
+            p1 = p10 & ~(1ull << pos2);
+        } else {
+            p2 = p20 & ~(1ull << pos2);
+            p1 = p10 & ~(1ull << pos) | (1ull << pos2);
+        }
+        u8 old = (p10 & (1ull << pos2)) ? 1 : (p20 & (1ull << pos2)) ? 2 : 0;
+        i16 score = 0 - temp_diff(m.r, m.c, p10, p20, turn+1);
         if (old != 0) {
             score -= temp_diff(r2, c2, p10, p20, old);
         }
-        bt[m.r][m.c] = 0;
-        bt[r2][c2] = turn + 1;
         score = score + temp_diff(r2, c2, p1, p2, turn+1);
-        scores[i] = score + additional(p1, p2);
-        bt[m.r][m.c] = turn + 1;
-        bt[r2][c2] = old;
+        score = score + additional(p1, p2);
+        scores[i] = score;
 
     }
-    
-    for (int i = bm; i < total; ++i) {
-        auto key_s = scores[i];
-        auto key_m = alm[d][i];
-        int j = i - 1;
-        while (j >= bm && (turn ? scores[j] < key_s : scores[j] > key_s)) {
-            scores[j + 1] = scores[j];
-            alm[d][j + 1] = alm[d][j];
-            j--;
+    int k = total;
+    if (turn){
+        for (int i = bm; i < k; ++i) {
+            auto key_s = scores[i];
+            auto key_m = alm[d][i];
+            int j = i - 1;
+            while (j >= bm && (scores[j] < key_s)) {
+                scores[j + 1] = scores[j];
+                alm[d][j + 1] = alm[d][j];
+                j--;
+            }
+            scores[j + 1] = key_s;
+            alm[d][j + 1] = key_m;
         }
-        scores[j + 1] = key_s;
-        alm[d][j + 1] = key_m;
+    }else {
+        for (int i = bm; i < k; ++i) {
+            auto key_s = scores[i];
+            auto key_m = alm[d][i];
+            int j = i - 1;
+            while (j >= bm && (scores[j] > key_s)) {
+                scores[j + 1] = scores[j];
+                alm[d][j + 1] = alm[d][j];
+                j--;
+            }
+            scores[j + 1] = key_s;
+            alm[d][j + 1] = key_m;
+        }
     }
 }

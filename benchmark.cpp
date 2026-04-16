@@ -53,7 +53,7 @@ bool make_random_move(u8 turn) {
     auto [p1, p2] = bb(b);
     memcpy(bt, b, 64);
 
-    sorter2(turn, d, 0, move_count, 0, p1, p2);
+    sorter2(turn, d, 0, move_count, p1, p2);
     
     static mt19937 rng(random_device{}());
     uniform_int_distribution<u8> dist{0, static_cast<u8>(move_count / 2)};
