@@ -9,7 +9,7 @@
 
 <h2>Instructions</h2>
 
-> The game currently auto-starts at depth 9, due to it being sufficiently fast. You can manually 
+> The game currently auto-starts at depth 9, due to it being sufficiently fast. Can be manually adjusted in *benchmark.cpp*.
 
 Play with:
 &nbsp;
